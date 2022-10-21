@@ -39,10 +39,10 @@ void ListChannels();
 void GetPublisherName();
 
 LPWSTR GetMessageString(
-	EVT_HANDLE hMetadata, 
-	EVT_HANDLE hEvent, 
+	EVT_HANDLE hMetadata,
+	EVT_HANDLE hEvent,
 	EVT_FORMAT_MESSAGE_FLAGS FormatId,
-	DWORD *dwBufferUsed
+	DWORD* dwBufferUsed
 );
 
 int TotalEventsInChannel(WCHAR path[]);
@@ -57,15 +57,15 @@ JNIEXPORT jint JNICALL JNICALL Java_Resolvers_Resolver_Add(JNIEnv* env, jobject 
 }
 
 JNIEXPORT jstring JNICALL Java_Resolvers_Resolver_Query(
-	JNIEnv* env, 
+	JNIEnv* env,
 	jobject thisObj,
 	jstring queryPath
 ) {
 
-	WCHAR *path = (WCHAR*) env->GetStringChars(queryPath, NULL);
+	WCHAR* path = (WCHAR*)env->GetStringChars(queryPath, NULL);
 	WCHAR eventId[] = L"Event/System";
 
-	return env->NewStringUTF(QueryChannel(path,eventId).c_str());
+	return env->NewStringUTF(QueryChannel(path, eventId).c_str());
 }
 
 
@@ -77,29 +77,28 @@ JNIEXPORT jobject JNICALL Java_Resolvers_Resolver_QueryObject(JNIEnv* env, jobje
 }
 
 
-
-JNIEXPORT jstring JNICALL Java_Resolvers_Resolver_QueryChannelsNext(
-	JNIEnv* env, 
-	jobject thisObj, 
-	jstring queryPath,  
+JNIEXPORT jstring JNICALL Java_Resolvers_Resolver_QueryChannelsFrom(
+	JNIEnv* env,
+	jobject thisObj,
+	jstring queryPath,
 	jint fromEventRecordID) {
 
 
-	string str(env->GetStringUTFChars(queryPath,NULL));
+	string str(env->GetStringUTFChars(queryPath, NULL));
 
-	return env->NewStringUTF(QueryChannelPaginatedNext(str,fromEventRecordID).c_str());
+	return env->NewStringUTF(QueryChannelPaginatedNext(str, fromEventRecordID).c_str());
 }
 
 JNIEXPORT jstring JNICALL Java_Resolvers_Resolver_QueryChannelsPrev(
-	JNIEnv* env, 
-	jobject thisObj, 
-	jstring queryPath,  
+	JNIEnv* env,
+	jobject thisObj,
+	jstring queryPath,
 	jint fromEventRecordID) {
 
 
-	string str(env->GetStringUTFChars(queryPath,NULL));
+	string str(env->GetStringUTFChars(queryPath, NULL));
 
-	return env->NewStringUTF(QueryChannelPaginatedPrev(str,fromEventRecordID).c_str());
+	return env->NewStringUTF(QueryChannelPaginatedPrev(str, fromEventRecordID).c_str());
 }
 
 
@@ -130,10 +129,9 @@ int main()
 	//QueryChannel(path);
 	//QueryChannelPaginated(queryPath, 2759020);
 
-	//cout << QueryChannelPaginatedNext(queryPath, 2759020);
-	cout << QueryChannelPaginatedPrev(queryPath, 2760683);
+	cout << QueryChannelPaginatedNext(queryPath, 2759020);
 
-	
+
 }
 
 
@@ -191,6 +189,8 @@ string QueryChannel(WCHAR path[], WCHAR eventId[]) {
 		if (ERROR_EVT_CHANNEL_NOT_FOUND == status)
 			wprintf(L"The channel was not found.\n");
 		else if (ERROR_EVT_INVALID_QUERY == status)
+			// You can call the EvtGetExtendedStatus function to try to get 
+			// additional information as to what is wrong with the query.
 			wprintf(L"The query is not valid.\n");
 		else
 			wprintf(L"EvtQuery failed with %lu.\n", status);
@@ -200,6 +200,8 @@ string QueryChannel(WCHAR path[], WCHAR eventId[]) {
 	Sleep(1000);
 
 cleanup:
+	//PrintResults(hResults);
+	//cout << "Eng Of Print Result" << endl;
 
 	string res = PrettyPrint(hResults, hProviderMetadata);
 
@@ -218,54 +220,172 @@ string QueryChannelPaginatedNext(
 	string pathQuery,
 	int fromEventRecordId
 ) {
+	//WCHAR eventId[] = L"Event/System";
+
+
+	//"*[System[(Level <= 3) and TimeCreated[timediff(@SystemTime) <= 86400000]]]"
 
 	string eventIdParams("*[System[");
 	eventIdParams.append("(EventRecordID>=" +
 		to_string(fromEventRecordId) + ")"
 		+ "]]");
+	/*" and (EventRecordID<=" +
+	to_string(fromEventRecordId + ARRAY_SIZE)
+	+ ")]]");*/
 
-	cout << "PathQuery" << " " << eventIdParams<<endl;
+
+	cout << "PathQuery" << " " << eventIdParams << endl;
 	wstring wEventIdParams(eventIdParams.begin(), eventIdParams.end());
 
-	WCHAR *eventId = (WCHAR*) wEventIdParams.c_str();
+	WCHAR* eventId = (WCHAR*)wEventIdParams.c_str();
 
 
-	wstring wPathQuery(pathQuery.begin(),pathQuery.end());
+	wstring wPathQuery(pathQuery.begin(), pathQuery.end());
 
-	WCHAR *path = (WCHAR*) wPathQuery.c_str();
+	WCHAR* path = (WCHAR*)wPathQuery.c_str();
 
 
-	wprintf(L"%s\n",path);
+	wprintf(L"%s\n", path);
 
-	return QueryChannel(path,eventId);
+	return QueryChannel(path, eventId);
+
+
+
+	//
+	//
+	//	DWORD status = ERROR_SUCCESS;
+	//	EVT_HANDLE hResults = NULL;
+	//	LPWSTR pwsPath = path;
+	//	LPWSTR pwsQuery = eventId;
+	//
+	//	LPWSTR pwsMessage = NULL;
+	//
+	//
+	//	EVT_HANDLE hProviderMetadata = NULL;
+	//
+	//	LPWSTR pwszPublisherName = path;
+	//
+	//
+	//
+	//	hProviderMetadata = EvtOpenPublisherMetadata(NULL, pwszPublisherName, NULL, 0, 0);
+	//	if (NULL == hProviderMetadata)
+	//	{
+	//		wprintf(L"EvtOpenPublisherMetadata failed with %d\n", GetLastError());
+	//		goto cleanup;
+	//	}
+	//
+	//
+	//	cout << "Result Started" << endl;
+	//
+	//	hResults = EvtQuery(NULL, pwsPath, pwsQuery, EvtQueryChannelPath);// EvtQueryReverseDirection);
+	//	if (NULL == hResults)
+	//	{
+	//		status = GetLastError();
+	//
+	//		if (ERROR_EVT_CHANNEL_NOT_FOUND == status)
+	//			wprintf(L"The channel was not found.\n");
+	//		else if (ERROR_EVT_INVALID_QUERY == status)
+	//			wprintf(L"The query is not valid.\n");
+	//		else
+	//			wprintf(L"EvtQuery failed with %lu.\n", status);
+	//
+	//		goto cleanup;
+	//	}
+	//	Sleep(1000);
+	//
+	//cleanup:
+	//	//PrintResults(hResults);
+	//	//cout << "Eng Of Print Result" << endl;
+	//
+	//	string res = PrettyPrint(hResults, hProviderMetadata);
+	//
+	//
+	//	return res;
 }
 
 string QueryChannelPaginatedPrev(
 	string pathQuery,
 	int fromEventRecordId
 ) {
+	//WCHAR eventId[] = L"Event/System";
+
+
+	//"*[System[(Level <= 3) and TimeCreated[timediff(@SystemTime) <= 86400000]]]"
 
 	string eventIdParams("*[System[");
-	eventIdParams.append("(EventRecordID>=" +
-		to_string(fromEventRecordId - ARRAY_SIZE) + ")"
+	eventIdParams.append("(EventRecordID<=" +
+		to_string(fromEventRecordId) + ")"
 		+ "]]");
+	/*" and (EventRecordID<=" +
+	to_string(fromEventRecordId + ARRAY_SIZE)
+	+ ")]]");*/
 
 
-	cout << "PathQuery" << " " << eventIdParams<<endl;
+	cout << "PathQuery" << " " << eventIdParams << endl;
 	wstring wEventIdParams(eventIdParams.begin(), eventIdParams.end());
 
-	WCHAR *eventId = (WCHAR*) wEventIdParams.c_str();
+	WCHAR* eventId = (WCHAR*)wEventIdParams.c_str();
 
 
-	wstring wPathQuery(pathQuery.begin(),pathQuery.end());
+	wstring wPathQuery(pathQuery.begin(), pathQuery.end());
 
-	WCHAR *path = (WCHAR*) wPathQuery.c_str();
-
-
-	wprintf(L"%s\n",path);
+	WCHAR* path = (WCHAR*)wPathQuery.c_str();
 
 
-	return QueryChannel(path, eventId);
+	wprintf(L"%s\n", path);
+
+
+
+
+
+	DWORD status = ERROR_SUCCESS;
+	EVT_HANDLE hResults = NULL;
+	LPWSTR pwsPath = path;
+	LPWSTR pwsQuery = eventId;
+
+	LPWSTR pwsMessage = NULL;
+
+
+	EVT_HANDLE hProviderMetadata = NULL;
+
+	LPWSTR pwszPublisherName = path;
+
+
+
+	hProviderMetadata = EvtOpenPublisherMetadata(NULL, pwszPublisherName, NULL, 0, 0);
+	if (NULL == hProviderMetadata)
+	{
+		wprintf(L"EvtOpenPublisherMetadata failed with %d\n", GetLastError());
+		goto cleanup;
+	}
+
+
+	cout << "Result Started" << endl;
+
+	hResults = EvtQuery(NULL, pwsPath, pwsQuery, EvtQueryChannelPath);// EvtQueryReverseDirection);
+	if (NULL == hResults)
+	{
+		status = GetLastError();
+
+		if (ERROR_EVT_CHANNEL_NOT_FOUND == status)
+			wprintf(L"The channel was not found.\n");
+		else if (ERROR_EVT_INVALID_QUERY == status)
+			wprintf(L"The query is not valid.\n");
+		else
+			wprintf(L"EvtQuery failed with %lu.\n", status);
+
+		goto cleanup;
+	}
+	Sleep(1000);
+
+cleanup:
+	//PrintResults(hResults);
+	//cout << "Eng Of Print Result" << endl;
+
+	string res = PrettyPrint(hResults, hProviderMetadata);
+
+
+	return res;
 }
 
 
@@ -323,6 +443,11 @@ string PrettyPrint(EVT_HANDLE hResults, EVT_HANDLE hProviderMetadata) {
 
 		wprintf(L"Event ID %d\nResult : \n%s \n", iter, pwsMessage);
 
+		/*if (pwsMessage) {
+			free(pwsMessage);
+			pwsMessage = NULL;
+		}*/
+
 
 	}
 
@@ -335,12 +460,7 @@ string PrettyPrint(EVT_HANDLE hResults, EVT_HANDLE hProviderMetadata) {
 
 	if (pwsMessage)
 	{
-		cout << endl << "End res : "<< res << endl;
-
-		if (pwsMessage) {
-			free(pwsMessage);
-			pwsMessage = NULL;
-		}
+		cout << endl << "End res : " << res << endl;
 		return res;
 	}
 
@@ -372,13 +492,13 @@ LPWSTR GetMessageString(
 	EVT_HANDLE hMetadata,
 	EVT_HANDLE hEvent,
 	EVT_FORMAT_MESSAGE_FLAGS FormatId,
-	DWORD *dwBufferUsed
+	DWORD* dwBufferUsed
 )
 {
 	LPWSTR pBuffer = NULL;
 	DWORD dwBufferSize = 0;
 	*dwBufferUsed = 0;
-	
+
 	DWORD status = 0;
 
 	if (!EvtFormatMessage(hMetadata, hEvent, 0, 0, NULL, FormatId, dwBufferSize, pBuffer, dwBufferUsed))
