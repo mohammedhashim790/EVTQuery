@@ -34,6 +34,19 @@ string QueryChannelPaginatedPrev(
 	int fromEventRecordId
 );
 
+string GetEvents(
+	string pathQuery
+);
+
+
+void RefreshEvents(
+	string pathQuery,
+	int fromEventRecordId
+);
+
+
+
+
 
 void ListChannels();
 void GetPublisherName();
@@ -116,6 +129,14 @@ JNIEXPORT jint JNICALL Java_Resolvers_Resolver_GetTotalLogsFromChannel(JNIEnv* e
 
 
 
+JNIEXPORT jstring JNICALL Java_Resolvers_Resolver_GetEvents(JNIEnv* env, jobject thisObj, jstring queryPath) {
+	string query(env->GetStringUTFChars(queryPath, NULL));
+
+	return env->NewStringUTF(GetEvents(query).c_str());
+}
+
+
+
 
 
 int main()
@@ -127,11 +148,15 @@ int main()
 
 	string queryPath("Security");
 
+
+	cout << GetEvents(queryPath);
+
+
 	//QueryChannel(path);
 	//QueryChannelPaginated(queryPath, 2759020);
 
 	//cout << QueryChannelPaginatedNext(queryPath, 2759020);
-	cout << QueryChannelPaginatedPrev(queryPath, 2760683);
+	//cout << QueryChannelPaginatedPrev(queryPath, 2760683);
 
 	
 }
@@ -205,11 +230,31 @@ cleanup:
 
 
 	return res;
+}
 
-	/*wprintf(L"Event message string: %s\n\n", pwsMessage);
 
-	free(pwsMessage);
-	pwsMessage = NULL;*/
+string GetEvents(
+	string pathQuery
+) {
+
+	string eventQuery("*[System[TimeCreated[timediff(@SystemTime) <= 600000]]]");
+
+
+	cout << "PathQuery" << " " << eventQuery << endl;
+	wstring wEventIdParams(eventQuery.begin(), eventQuery.end());
+
+	WCHAR* eventId = (WCHAR*)wEventIdParams.c_str();
+
+
+	wstring wPathQuery(pathQuery.begin(), pathQuery.end());
+
+	WCHAR* path = (WCHAR*)wPathQuery.c_str();
+
+
+	wprintf(L"%s\n", path);
+
+	return QueryChannel(path, eventId);
+
 }
 
 

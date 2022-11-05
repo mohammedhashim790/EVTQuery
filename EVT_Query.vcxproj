@@ -72,9 +72,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <CopyCppRuntimeToOutputDir>true</CopyCppRuntimeToOutputDir>
+    <IncludePath>D:\Zoho\Evt\EvtQueryAPI\src\main\java\Resolvers;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <CopyCppRuntimeToOutputDir>true</CopyCppRuntimeToOutputDir>
+    <IncludePath>D:\Zoho\Evt\EvtQueryAPI\src\main\java\Resolvers;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
