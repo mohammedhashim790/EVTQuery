@@ -6,6 +6,8 @@
 #include<jni.h>
 #include "Resolvers_Resolver.h";
 #include <string>
+#include<vector>
+#include<queue>
 
 
 using namespace std;
@@ -22,8 +24,14 @@ TCHAR XMLDataUser[SIZE_DATA];
 DWORD PrintResults(EVT_HANDLE hResults);
 DWORD PrintEvent(EVT_HANDLE hEvent); // Shown in the Rendering Events topic
 string PrettyPrint(EVT_HANDLE hResults, EVT_HANDLE hProviderMetadata);
-
+void PrettyPrintAll(EVT_HANDLE hResults, JNIEnv* env, EVT_HANDLE hProviderMetadata);
+//, JNIEnv* env
 string QueryChannel(WCHAR path[], WCHAR eventId[]);
+
+void QueryChannelAll(WCHAR path[], WCHAR eventId[], JNIEnv* env);
+
+
+
 string QueryChannelPaginatedNext(
 	string pathQuery,
 	int fromEventRecordId
@@ -36,6 +44,11 @@ string QueryChannelPaginatedPrev(
 
 string GetEvents(
 	string pathQuery
+);
+
+void GetAllEvents(
+	string pathQuery,
+	JNIEnv* env
 );
 
 
@@ -59,6 +72,18 @@ LPWSTR GetMessageString(
 );
 
 int TotalEventsInChannel(WCHAR path[]);
+
+void SendToJava(JNIEnv* env, jclass jcls,string toSend);
+
+
+jclass loadClass(JNIEnv* env) {
+	jclass clas = env->FindClass("com/example/evtquery/ListChannels");
+
+	return clas;
+}
+
+
+
 
 
 JNIEXPORT jint JNICALL JNICALL Java_Resolvers_Resolver_Add(JNIEnv* env, jobject thisObj, jint num1, jint num2) {
@@ -91,7 +116,7 @@ JNIEXPORT jobject JNICALL Java_Resolvers_Resolver_QueryObject(JNIEnv* env, jobje
 
 
 
-JNIEXPORT jstring JNICALL Java_Resolvers_Resolver_QueryChannelsNext(
+JNIEXPORT void JNICALL Java_Resolvers_Resolver_QueryChannelsNext(
 	JNIEnv* env, 
 	jobject thisObj, 
 	jstring queryPath,  
@@ -100,7 +125,22 @@ JNIEXPORT jstring JNICALL Java_Resolvers_Resolver_QueryChannelsNext(
 
 	string str(env->GetStringUTFChars(queryPath,NULL));
 
-	return env->NewStringUTF(QueryChannelPaginatedNext(str,fromEventRecordID).c_str());
+	string eventIdParams("*[System[");
+	eventIdParams.append("(EventRecordID>=" +
+		to_string(fromEventRecordID) + ")"
+		+ "]]");
+
+	cout << "PathQuery" << " " << eventIdParams << endl;
+	wstring wEventIdParams(eventIdParams.begin(), eventIdParams.end());
+
+	WCHAR* eventId = (WCHAR*)wEventIdParams.c_str();
+
+
+	wstring wPathQuery(str.begin(), str.end());
+
+	WCHAR* path = (WCHAR*)wPathQuery.c_str();
+
+	QueryChannelAll(path,eventId,env);
 }
 
 JNIEXPORT jstring JNICALL Java_Resolvers_Resolver_QueryChannelsPrev(
@@ -136,6 +176,26 @@ JNIEXPORT jstring JNICALL Java_Resolvers_Resolver_GetEvents(JNIEnv* env, jobject
 }
 
 
+vector<string> events;
+
+JNIEXPORT void JNICALL Java_Resolvers_Resolver_FetchAllData(JNIEnv* env, jobject thisObj, jstring queryPath) {
+	WCHAR* path = (WCHAR*)env->GetStringChars(queryPath, NULL);
+	WCHAR eventId[] = L"Event/System";
+
+
+	cout << "Initialised java class" << (loadClass(env) != nullptr);
+
+	//SendToJava(env,loadClass(env),"HI");
+
+
+	QueryChannelAll(path,eventId,env);
+
+
+}
+
+
+
+
 
 
 
@@ -148,15 +208,16 @@ int main()
 
 	string queryPath("Security");
 
+	cout <<  "Total Channels "  << TotalEventsInChannel(path) << "\n\n\n\n";
 
-	cout << GetEvents(queryPath);
+	//WCHAR eventId[] = L"Event/System";
+	WCHAR eventId[] = L"*";
 
 
-	//QueryChannel(path);
-	//QueryChannelPaginated(queryPath, 2759020);
 
-	//cout << QueryChannelPaginatedNext(queryPath, 2759020);
-	//cout << QueryChannelPaginatedPrev(queryPath, 2760683);
+	QueryChannel(path,eventId);
+
+
 
 	
 }
@@ -179,6 +240,52 @@ int TotalEventsInChannel(WCHAR path[]) {
 	return -1;
 
 
+}
+
+void QueryChannelAll(WCHAR path[], WCHAR eventId[],JNIEnv* env) {
+	//WCHAR eventId[] = L"Event/System";
+	//WCHAR eventId[] = L"Event/System";
+	//WCHAR path[] = L"Security";
+
+	DWORD status = ERROR_SUCCESS;
+	EVT_HANDLE hResults = NULL;
+	LPWSTR pwsPath = path;
+	LPWSTR pwsQuery = eventId;
+
+	LPWSTR pwsMessage = NULL;
+
+
+	EVT_HANDLE hProviderMetadata = NULL;
+
+	LPWSTR pwszPublisherName = path;
+
+	cout << "Result Started" << endl;
+
+	hProviderMetadata = EvtOpenPublisherMetadata(NULL, pwszPublisherName, NULL, 0, 0);
+	if (NULL == hProviderMetadata)
+	{
+		wprintf(L"EvtOpenPublisherMetadata failed with %d\n", GetLastError());
+		goto cleanup;
+	}
+
+
+	hResults = EvtQuery(NULL, pwsPath, pwsQuery, EvtQueryChannelPath);// EvtQueryReverseDirection);
+	if (NULL == hResults)
+	{
+		status = GetLastError();
+		if (ERROR_EVT_CHANNEL_NOT_FOUND == status)
+			wprintf(L"The channel was not found.\n");
+		else if (ERROR_EVT_INVALID_QUERY == status)
+			wprintf(L"The query is not valid.\n");
+		else
+			wprintf(L"EvtQuery failed with %lu.\n", status);
+
+		goto cleanup;
+	}
+	Sleep(1000);
+
+cleanup:
+	PrettyPrintAll(hResults,env ,hProviderMetadata);
 }
 
 string QueryChannel(WCHAR path[], WCHAR eventId[]) {
@@ -222,15 +329,40 @@ string QueryChannel(WCHAR path[], WCHAR eventId[]) {
 
 		goto cleanup;
 	}
-	Sleep(1000);
+	//Sleep(1000);
 
 cleanup:
 
-	string res = PrettyPrint(hResults, hProviderMetadata);
+	PrintResults(hResults);
 
 
-	return res;
+	//string res = PrettyPrint(hResults, hProviderMetadata);
+
+
+	return "";
 }
+
+
+void SendToJava(JNIEnv* env, jclass jcls,string toSend) {
+
+	cout << "Sending to Java : " << endl;
+
+
+	cout << toSend.length() << endl;
+
+	//jmethodID mid = env->GetStaticMethodID(jcls, "GetEntityFromResolver", "(Ljava/lang/String;)V");  // find method
+	jmethodID mid = env->GetStaticMethodID(jcls, "EventReceiver", "([B)V");  // find method
+	if (mid == nullptr)
+		cerr << "ERROR: method void mymain() not found !" << endl;
+	else {
+		jbyteArray byteArray = env->NewByteArray(toSend.size());
+		env->SetByteArrayRegion(byteArray, 0, toSend.size(), (jbyte*)toSend.data());
+		//env->CallStaticVoidMethod(jcls, mid, env->NewStringUTF(json.c_str()));                      // call method
+		env->CallStaticVoidMethod(jcls, mid, byteArray);                      // call method
+		cout << endl;
+	}
+}
+
 
 
 string GetEvents(
@@ -279,9 +411,6 @@ string QueryChannelPaginatedNext(
 
 	WCHAR *path = (WCHAR*) wPathQuery.c_str();
 
-
-	wprintf(L"%s\n",path);
-
 	return QueryChannel(path,eventId);
 }
 
@@ -313,6 +442,121 @@ string QueryChannelPaginatedPrev(
 	return QueryChannel(path, eventId);
 }
 
+
+void PrettyPrintAll(
+	EVT_HANDLE hResults,
+	JNIEnv* env,
+	EVT_HANDLE hProviderMetadata) {
+
+
+	EVT_HANDLE hEvent[ARRAY_SIZE];
+	DWORD status = ERROR_SUCCESS;
+	DWORD dwReturned = 0;
+
+	DWORD currentDwBufferUsed = 0;
+
+
+	DWORD dwBufferUsed = 0;
+
+
+
+	LPWSTR pwsMessage = NULL;
+
+
+	cout << "PRetty Print All Started";
+
+
+	wstring wres;
+	string res;
+
+
+
+	int count = 0;
+
+
+	cout << "Pretty Print Processing " << endl;
+
+
+	//if (!EvtNext(hResults, ARRAY_SIZE, hEvent, INFINITE, 0, &dwReturned))
+	//{
+	//	wprintf(L"EvtNext failed with %lu\n", status);
+	//	goto cleanup;
+	//}
+
+	jclass jCls = loadClass(env);
+
+
+	while (true) {
+		
+		if (!EvtNext(hResults, ARRAY_SIZE, hEvent, INFINITE, 0, &dwReturned)) {
+
+			if (ERROR_NO_MORE_ITEMS != (status = GetLastError()))
+			{
+				cout << " Evt Over " << dwReturned << endl;
+				break;
+			}
+		}
+
+		if (dwReturned == 0) {
+			break;
+		}
+
+		count += dwReturned;
+		cout << count << endl;
+		
+		for (int iter = 0; iter < dwReturned; iter++) {
+			pwsMessage = GetMessageString(
+				hProviderMetadata,
+				hEvent[iter],
+				EvtFormatMessageXml,
+				&dwBufferUsed
+			);
+
+			currentDwBufferUsed += dwBufferUsed;
+
+			char buffer[1000];
+
+			wres.append(pwsMessage);
+
+
+			dwBufferUsed = 0;
+
+			//wprintf(L"Event ID %d\nResult : \n%s \n", iter, pwsMessage);
+		}
+		if (wres.size() > 1000) {
+			res.append("<EventArray>");
+			res.append(string(wres.begin(), wres.end()));
+			res.append("</EventArray>");
+			SendToJava(env, jCls, res);
+
+
+			res = "";
+			wres.clear();
+
+		}
+
+
+	}
+
+
+	cout << count;
+	
+
+
+cleanup:
+
+	if (hEvent)
+		EvtClose(hEvent);
+
+	if (hResults)
+		EvtClose(hResults);
+
+	if (hProviderMetadata)
+		EvtClose(hProviderMetadata);
+
+
+
+}
 
 
 
@@ -602,6 +846,8 @@ DWORD PrintResults(EVT_HANDLE hResults)
 	EVT_HANDLE hEvents[ARRAY_SIZE];
 	DWORD dwReturned = 0;
 
+	int count = 0;
+
 	while (true)
 	{
 		// Get a block of events from the result set.
@@ -617,12 +863,14 @@ DWORD PrintResults(EVT_HANDLE hResults)
 
 		// For each event, call the PrintEvent function which renders the
 		// event for display. PrintEvent is shown in RenderingEvents.
+
 		for (DWORD i = 0; i < dwReturned; i++)
 		{
 			if (ERROR_SUCCESS == (status = PrintEvent(hEvents[i])))
 			{
 				EvtClose(hEvents[i]);
 				hEvents[i] = NULL;
+				count++;
 			}
 			else
 			{
@@ -638,6 +886,10 @@ cleanup:
 		if (NULL != hEvents[i])
 			EvtClose(hEvents[i]);
 	}
+
+
+	cout << "Total Count :  " << count;
+
 
 	return status;
 }
